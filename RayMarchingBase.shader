@@ -47,6 +47,18 @@
 				half4 color : SV_Target;
 				float depth : SV_Depth;
 			};
+
+			//繰り返し関数
+			float3 mod(float3 a, float3 b)
+			{
+				return frac(abs(a / b)) * abs(b);
+			}
+
+			float3 repeat(float3 pos, float3 span)
+			{
+				return mod(pos, span) - span * 0.5;
+			}
+			
 			//深度情報を計算します。
 			float computeDepth(float3 pos)
             {
@@ -122,7 +134,7 @@
 				}
 
 				//レイがオブジェクトにぶつかったか判定
-				float4 color;
+				float4 color = float4(0.0,0.0,0.0,0.0);
 				//ぶつかっていれば一定より小さいはず、大きかったらそのピクセルはdiscard(処理しない)
 				if(abs(dist.x)>threshold)
 					discard;
