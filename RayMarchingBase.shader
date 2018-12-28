@@ -1,9 +1,9 @@
-﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
-Shader "RayMarching/Base"
+﻿Shader "RayMarching/Base"
 {
 	Properties
 	{
 		_Colors("Color",Color)=(1.0,1.0,1.0,0.0)
+		_LightValue("LightLevel",Range(0.0,10.0))=1.25
 	}
 	SubShader
 	{
@@ -22,6 +22,7 @@ Shader "RayMarching/Base"
 			
 			#include "UnityCG.cginc"
 			uniform float4 _Colors;
+			uniform float _LightValue;
 
 			struct VertInput
 			{
@@ -56,6 +57,7 @@ Shader "RayMarching/Base"
                     return (vpPos.z / vpPos.w) * 0.5 + 0.5;
                 #endif
             }
+
 			//球のレイマーチングを行う距離関数
 			float sphere(float3 pos,float size){
 				return length(pos)-size;
@@ -103,6 +105,9 @@ Shader "RayMarching/Base"
 
 				float3 posOnRay = ray.org;
 				float maxStep = 32;
+				float lightValue = _LightValue; //ライトの明るさ調整
+				float threshold = 0.001;		//衝突したと判定する閾値
+				float maxDistance = 10.0;		//あとでカメラからMax距離を作成
 				float tmp;
 				float2 dist;
 				tmp = 0.0;
@@ -112,18 +117,21 @@ Shader "RayMarching/Base"
 					dist = distFunc(posOnRay);
 					tmp += dist.x;
 					posOnRay = ray.org + tmp*ray.dir;
+					if(dist.x<threshold||dist.x>maxDistance)
+						break;
 				}
 
 				//レイがオブジェクトにぶつかったか判定
 				float4 color;
 				//ぶつかっていれば一定より小さいはず、大きかったらそのピクセルはdiscard(処理しない)
-				if(abs(dist.x)>0.001)
+				if(abs(dist.x)>threshold)
 					discard;
 				else{
 					//法線ベクトルを作成
 					float3 normal = generateNormal(posOnRay);
-					//ここで光の考慮をしたいけどとりあえず保留
-					color = _Colors;
+					//_WorldSpaceLightPos0でシーン内のライトの位置を取得できる
+					float diff = clamp(dot(_WorldSpaceLightPos0,normal),0.1,1.0);
+					color = _Colors * diff * lightValue;
 				}
 				o.color = color;
 				o.depth = computeDepth(posOnRay);
